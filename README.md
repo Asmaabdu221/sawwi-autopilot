@@ -9,6 +9,8 @@
 
 </div>
 
+**🔗 صفحة المشروع:** https://asmaabdu221.github.io/sawwi-autopilot
+
 ---
 
 ## وش يسوي بالضبط
