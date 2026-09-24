@@ -1,0 +1,165 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sawwi Daily Post",
+  "description": "المخرَج الموحّد ليوم واحد من محتوى سوّي. كل عقد الأتمتة تقرأ وتكتب بهذا الشكل.",
+  "type": "object",
+  "required": ["meta", "video", "captions", "visual", "guard"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["date", "day_index", "pillar", "series", "title", "cta_stage"],
+      "properties": {
+        "date": { "type": "string", "format": "date", "description": "تاريخ النشر — توقيت الرياض" },
+        "day_index": { "type": "integer", "description": "رقم اليوم في التقويم" },
+        "pillar": { "enum": ["انتشار", "بزنس", "تعليمي"] },
+        "series": {
+          "enum": [
+            "هل نقدر نخليه يسوّيها؟",
+            "عطيناه وظيفة",
+            "لو عندي ___ اليوم",
+            "قبل ← بعد",
+            "الحلقة — الدخل",
+            "خطوة بخطوة"
+          ]
+        },
+        "title": { "type": "string", "maxLength": 80 },
+        "cta_stage": { "enum": ["وعي", "حفظ", "تأهيل", "قائمة", "بيع"] },
+        "production_mode": { "enum": ["بدون ظهور", "ظهور على الكاميرا", "صوت + شاشة"] },
+        "source_inspiration": {
+          "type": "object",
+          "description": "من أين جاءت الفكرة — للتتبّع فقط",
+          "properties": {
+            "reference_video": { "type": "string" },
+            "reference_channel": { "type": "string" },
+            "adaptation_note": { "type": "string", "description": "كيف تُرجمت البنية للسياق السعودي" }
+          }
+        }
+      }
+    },
+    "video": {
+      "type": "object",
+      "required": ["hooks", "script", "scenes", "verdict"],
+      "properties": {
+        "hooks": {
+          "type": "array", "minItems": 3, "maxItems": 3,
+          "description": "٣ خطّافات ≤ ١٢ كلمة — تُختبر A/B",
+          "items": { "type": "string", "maxLength": 90 }
+        },
+        "script": { "type": "string", "description": "النص الصوتي كاملًا — لهجة سعودية بيضاء، ٤٥ ثانية" },
+        "duration_sec": { "type": "integer", "minimum": 21, "maximum": 90 },
+        "scenes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["t", "action", "on_screen"],
+            "properties": {
+              "t": { "type": "string", "description": "المدى الزمني، مثل 0-3" },
+              "action": { "type": "string", "description": "ما يحدث — تسجيل شاشة / يدين / ظهور" },
+              "on_screen": { "type": "string", "description": "النص الظاهر على الشاشة" },
+              "gen_prompt": { "type": "string", "description": "أمر التوليد إن كان المشهد مولّدًا — ينتهي بلاحقة الأسلوب" }
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "description": "قيم شريط قبل ← بعد ورقاقة الوقت",
+          "properties": {
+            "before": { "type": "string" },
+            "after": { "type": "string" },
+            "chip": { "type": "string", "description": "مثل: ٣ ساعات ← ١٢ دقيقة" }
+          }
+        },
+        "verdict": { "type": "string", "description": "الحكم الصريح: ينفع / ما ينفع / ينفع بشرط" }
+      }
+    },
+    "captions": {
+      "type": "object",
+      "description": "كابشن مستقل لكل منصة — لا نسخ ولصق بينها",
+      "required": ["tiktok", "instagram", "youtube_shorts", "snapchat", "linkedin", "x"],
+      "properties": {
+        "tiktok":         { "$ref": "#/$defs/caption" },
+        "instagram":      { "$ref": "#/$defs/caption" },
+        "youtube_shorts": {
+          "allOf": [{ "$ref": "#/$defs/caption" }],
+          "properties": { "title": { "type": "string", "maxLength": 100 } }
+        },
+        "snapchat":       { "$ref": "#/$defs/caption" },
+        "linkedin": {
+          "allOf": [{ "$ref": "#/$defs/caption" }],
+          "properties": { "en_version": { "type": "string", "description": "نسخة إنجليزية مهنية مختصرة" } }
+        },
+        "x":              { "$ref": "#/$defs/caption" }
+      }
+    },
+    "visual": {
+      "type": "object",
+      "properties": {
+        "cover_text":   { "type": "string", "description": "≤ ٤ كلمات" },
+        "cover_number": { "type": "string", "description": "الرقم في الرقاقة الزعفرانية" },
+        "cover_file":   { "type": "string", "description": "مسار الغلاف المولَّد" },
+        "carousel": {
+          "type": "array",
+          "description": "شرائح الكاروسيل إن وُجد",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind":  { "enum": ["cover", "step", "before_after", "note", "end"] },
+              "title": { "type": "string" },
+              "body":  { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "guard": {
+      "type": "object",
+      "description": "نتيجة حارس البراند — لا يُنشر شيء بدون pass",
+      "required": ["status", "checks"],
+      "properties": {
+        "status": { "enum": ["pass", "fixed", "fail"] },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id":     { "type": "integer", "minimum": 1, "maximum": 10 },
+              "name":   { "type": "string" },
+              "passed": { "type": "boolean" },
+              "note":   { "type": "string" }
+            }
+          }
+        },
+        "fixes_applied": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "publish": {
+      "type": "object",
+      "properties": {
+        "approved_at":  { "type": "string", "format": "date-time" },
+        "approved_by":  { "type": "string" },
+        "scheduled":    {
+          "type": "object",
+          "description": "وقت النشر لكل منصة بتوقيت الرياض",
+          "additionalProperties": { "type": "string" }
+        },
+        "manual_only":  {
+          "type": "array",
+          "description": "منصات تحتاج نشرًا يدويًا — سناب دائمًا هنا",
+          "items": { "type": "string" }
+        },
+        "results": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    }
+  },
+  "$defs": {
+    "caption": {
+      "type": "object",
+      "required": ["text", "hashtags", "cta"],
+      "properties": {
+        "text":     { "type": "string" },
+        "hashtags": { "type": "array", "items": { "type": "string" } },
+        "cta":      { "type": "string", "description": "فعل واحد فقط" }
+      }
+    }
+  }
+}

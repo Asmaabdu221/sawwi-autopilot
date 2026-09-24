@@ -1,0 +1,24 @@
+# سوّي أوتوبايلوت — n8n محلي (للنظام الكامل فقط)
+# التشغيل:  docker compose up -d
+# الفتح:    http://localhost:5678
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.39.10
+    container_name: sawwi-n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"   # مقيّد على جهازك — لا يصله أحد من الشبكة
+    environment:
+      - GENERIC_TIMEZONE=Asia/Riyadh
+      - TZ=Asia/Riyadh
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:

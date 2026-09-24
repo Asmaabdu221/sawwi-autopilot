@@ -1,0 +1,49 @@
+{
+  "name": "sawwi-autopilot",
+  "version": "1.0.0",
+  "description": "نظام محتوى يومي بالذكاء الاصطناعي — يلتقط الأفكار من مراجعك، يكيّفها لبراندك وجمهورك، وينتج حزمة نشر كاملة. يعمل باشتراك Claude بلا مفتاح API.",
+  "type": "module",
+  "bin": {
+    "sawwi-autopilot": "setup.mjs"
+  },
+  "scripts": {
+    "setup": "node setup.mjs",
+    "ideas": "node scripts/wf1-ideas.mjs --days 14",
+    "daily": "node scripts/wf2-daily.mjs",
+    "export": "node scripts/export-post.mjs",
+    "doctor": "node scripts/preflight.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "ai",
+    "content",
+    "automation",
+    "arabic",
+    "claude",
+    "n8n",
+    "محتوى",
+    "أتمتة"
+  ],
+  "license": "MIT",
+  "files": [
+    "setup.mjs",
+    "scripts/",
+    "brain/",
+    "prompts/",
+    "schema/",
+    "sheets/",
+    "workflows/",
+    "*.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Asmaabdu221/sawwi-autopilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Asmaabdu221/sawwi-autopilot/issues"
+  },
+  "homepage": "https://github.com/Asmaabdu221/sawwi-autopilot#readme",
+  "author": "Asmaabdu221"
+}

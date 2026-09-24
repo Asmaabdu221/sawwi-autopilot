@@ -1,0 +1,19 @@
+# أسرارك — لا تُرفع أبدًا
+scripts/config.json
+scripts/wf1-config.json
+*token*
+*credential*
+*-key.json
+*.iam.gserviceaccount.com.json
+service-account*.json
+
+# مخرجاتك
+content/
+scripts/logs/
+node_modules/
+.DS_Store
+
+# تُولَّد بالمثبّت
+brain/00-brand-core.md
+brain/04-references.md
+scripts/sources.json

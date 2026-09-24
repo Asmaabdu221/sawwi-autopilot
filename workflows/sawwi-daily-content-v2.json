@@ -1,0 +1,809 @@
+{
+  "id": "sawwi-daily-content-v2",
+  "name": "سوّي — المحتوى اليومي (WF2)",
+  "nodes": [
+    {
+      "id": "ec03deb1-8d21-478b-bd1d-c979633299a1",
+      "name": "طلب موعد اليوم",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        -280
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "sawwi/wf2-slot",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "fa7ebf5c-d040-4a38-9bb2-1e944df2d246",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Sawwi WF1 Key"
+        }
+      }
+    },
+    {
+      "id": "254a4bdd-724c-4ddf-a46a-29aa52d003e0",
+      "name": "قراءة بنك الأفكار",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        240,
+        -280
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "__SHEET_ID__",
+          "cachedResultName": "سوّي — أرشيف المحتوى"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ideas"
+        },
+        "options": {
+          "returnAllMatches": "returnAllMatches"
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "",
+          "name": "Google Sheets — Sawwi"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "5552d6b2-372d-4263-a0df-be76f4419ed6",
+      "name": "قراءة المنشورات السابقة",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        -280
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "__SHEET_ID__",
+          "cachedResultName": "سوّي — أرشيف المحتوى"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "posts"
+        },
+        "options": {
+          "returnAllMatches": "returnAllMatches"
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "",
+          "name": "Google Sheets — Sawwi"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "5ff7212c-b3b6-4db5-80dc-7794374e00a0",
+      "name": "اختيار فكرة اليوم",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        -280
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const RIYADH = new Date(Date.now() + 3 * 60 * 60 * 1000);\nconst date = RIYADH.toISOString().slice(0, 10);\nconst dow = RIYADH.getUTCDay();\nconst PLAN = {\n  0: { day: 'الأحد', pillar: 'بزنس', series: 'لو عندي ___ اليوم', cta_stage: 'تأهيل', production_mode: 'صوت + شاشة' },\n  1: { day: 'الاثنين', pillar: 'انتشار', series: 'عطيناه وظيفة', cta_stage: 'وعي', production_mode: 'بدون ظهور' },\n  2: { day: 'الثلاثاء', pillar: 'بزنس', series: 'قبل ← بعد', cta_stage: 'تأهيل', production_mode: 'صوت + شاشة' },\n  3: { day: 'الأربعاء', pillar: 'بزنس', series: 'الحلقة — الدخل', cta_stage: 'قائمة', production_mode: 'ظهور على الكاميرا' },\n  4: { day: 'الخميس', pillar: 'تعليمي', series: 'خطوة بخطوة', cta_stage: 'حفظ', production_mode: 'صوت + شاشة' },\n  5: { day: 'الجمعة', pillar: 'انتشار', series: 'هل نقدر نخليه يسوّيها؟', cta_stage: 'وعي', production_mode: 'بدون ظهور' },\n  6: { day: 'السبت', pillar: 'انتشار', series: 'هل نقدر نخليه يسوّيها؟', cta_stage: 'وعي', production_mode: 'ظهور على الكاميرا' }\n};\nconst p = PLAN[dow];\nconst slot = { date: date, weekday: p.day, pillar: p.pillar, series: p.series, cta_stage: p.cta_stage, production_mode: p.production_mode, linkedin_day: dow === 0 || dow === 1 || dow === 2 };\nconst ideas = $('قراءة بنك الأفكار').all().map(i => i.json).filter(r => r && r.id);\nconst posts = $input.all().map(i => i.json).filter(r => r && r.post_id);\nconst forced = String($('طلب موعد اليوم').first().json.query && $('طلب موعد اليوم').first().json.query.idea || '').trim();\nconst usable = ideas.filter(r => { const s = String(r.status || 'new').trim(); return s !== 'used' && s !== 'rejected' && s !== 'hold'; });\nconst score = (r) => {\n  let v = Number(r.score) || 3;\n  if (String(r.status).trim() === 'approved') { v += 10; }\n  if (String(r.pillar).trim() === slot.pillar) { v += 4; }\n  if (String(r.series).trim() === slot.series) { v += 3; }\n  return v;\n};\nlet chosen = null;\nif (forced) { chosen = ideas.find(r => String(r.id).trim() === forced) || null; }\nelse if (usable.length) { chosen = usable.slice().sort((a, b) => score(b) - score(a))[0]; }\nconst counts = { approved: 0, 'new': 0, hold: 0, rejected: 0, used: 0 };\nfor (const r of ideas) { const s = String(r.status || 'new').trim(); if (counts[s] !== undefined) { counts[s]++; } }\nreturn [{ json: {\n  slot: slot,\n  idea: chosen,\n  recent: posts.slice(-14).map(p => ({ title: p.title, hook: p.hook })),\n  bank_total: ideas.length,\n  approved_count: counts.approved,\n  new_count: counts['new'],\n  picked_because: chosen ? (forced ? 'محددة يدويًا' : 'الأعلى ملاءمة لركيزة اليوم') : 'لا فكرة صالحة'\n} }];"
+      }
+    },
+    {
+      "id": "18abfe27-01cd-47fb-b595-0de625dfba7b",
+      "name": "رد الموعد",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        960,
+        -280
+      ],
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      }
+    },
+    {
+      "id": "6e6c1c79-0dd7-46bd-8680-3746ef0d9db5",
+      "name": "استقبال الحزمة",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        180
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sawwi/wf2-package",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "6b43da71-f2bd-4177-9551-b871531c0522",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Sawwi WF1 Key"
+        }
+      }
+    },
+    {
+      "id": "712f6e6f-f3cb-4fe7-9ac2-23c59166f743",
+      "name": "حارس البراند",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const body = $input.first().json.body || {};\nconst pkg = body.package || {};\nconst slot = body.slot || {};\nconst BANNED = ['ثورة','سيقضي على وظيفتك','بيأخذ وظيفتك','ياخذ وظيفتك','أسرار','ربح سريع','دخل بدون مجهود','ستغيّر حياتك','راح تتغير حياتك','أفضل ١٠ أدوات','أفضل 10 أدوات','مجانًا ١٠٠٪','الكل لازم يتعلم','لا تفوّت','خرافي','جنوني','مذهل'];\nconst SAUDI = ['خطاب','واتساب','فاتورة','فواتير','مناقصة','مناقصات','إجازة','دوام','سيرة ذاتية','سير ذاتية','سيَر','عرض سعر','موظف','الرياض','السعودي','راتب','رواتب'];\nconst LIMITS = { tiktok: 300, instagram: 400, snapchat: 300, linkedin: 1300, x: 280 };\nconst caps = pkg.captions || {};\nconst vid = pkg.video || {};\nconst blob = JSON.stringify(pkg);\nconst checks = [];\nconst add = (id, name, passed, note) => checks.push({ id: id, name: name, passed: passed, note: note || '' });\nconst hits = BANNED.filter(w => blob.indexOf(w) !== -1);\nadd(1, 'الكلمات المحظورة', hits.length === 0, hits.join('، '));\nconst NUMW = new Set([\"واحد\",\"واحده\",\"اثنين\",\"اثنان\",\"ثنتين\",\"ثلاث\",\"ثلاثه\",\"ثلاثين\",\"ثلاثون\",\"اربع\",\"اربعه\",\"اربعين\",\"اربعون\",\"خمس\",\"خمسه\",\"خمسين\",\"خمسون\",\"ست\",\"سته\",\"ستين\",\"ستون\",\"سبع\",\"سبعه\",\"سبعين\",\"سبعون\",\"ثمان\",\"ثمانيه\",\"ثمانين\",\"ثمانون\",\"تسع\",\"تسعه\",\"تسعين\",\"تسعون\",\"عشر\",\"عشره\",\"عشرين\",\"عشرون\",\"مئه\",\"مايه\",\"مئتين\",\"الف\",\"الفين\",\"نصف\",\"ربع\",\"ثلث\",\"عشرات\",\"مئات\",\"الاف\"]);\nconst arNorm = (x) => String(x).replace(/[\\u064B-\\u0652\\u0640]/g, \"\").replace(/[\\u0623\\u0625\\u0622]/g, \"\\u0627\").replace(/\\u0629/g, \"\\u0647\").replace(/\\u0649/g, \"\\u064A\");\nconst scriptTxt = String(vid.script || \"\");\nconst hasDigit = /[0-9\\u0660-\\u0669]/.test(scriptTxt);\nconst hasWordNum = arNorm(scriptTxt).split(/[^\\u0621-\\u064A]+/).some(w => NUMW.has(w));\nconst hasNum = hasDigit || hasWordNum;\nadd(2, 'الرقم في النص الصوتي', hasNum, hasNum ? '' : 'لا يوجد رقم ملموس — لا أرقامًا ولا كلمات عدد');\nconst verdict = String(vid.verdict || '').trim();\nadd(3, 'الحكم الصريح', verdict.length > 0, verdict ? '' : 'لا يوجد حكم');\nconst saudi = SAUDI.some(w => blob.indexOf(w) !== -1);\nadd(4, 'السياق السعودي', saudi, saudi ? '' : 'لا يوجد مثال سعودي ملموس');\nconst fear = /(ياخذ|يأخذ|تخسر|بتفقد) وظيفت|يستبدل(ك| الموظف)/.test(blob);\nadd(5, 'التخويف من فقدان الوظيفة', !fear, fear ? 'وُجد إيحاء بفقدان الوظيفة' : '');\nconst hooks = vid.hooks || [];\nconst longHooks = hooks.filter(h => String(h).trim().split(/\\s+/).length > 12);\nadd(6, 'طول الخطّاف', hooks.length === 3 && longHooks.length === 0, longHooks.join(' | '));\nconst noCta = Object.keys(caps).filter(k => !String((caps[k] && caps[k].cta) || '').trim());\nadd(7, 'وجود CTA', noCta.length === 0, noCta.join('، '));\nconst chip = String((vid.result && vid.result.chip) || '');\nadd(8, 'رقاقة النتيجة', /[0-9\\u0660-\\u0669]/.test(chip), chip ? '' : 'رقاقة الوقت فارغة');\nconst tooLong = Object.keys(LIMITS).filter(k => String((caps[k] && caps[k].text) || '').length > LIMITS[k]);\nconst ytTitle = String((caps.youtube_shorts && caps.youtube_shorts.title) || '');\nif (ytTitle.length > 100) { tooLong.push('youtube_shorts.title'); }\nadd(9, 'حدود الطول', tooLong.length === 0, tooLong.join('، '));\nconst cover = String((pkg.visual && pkg.visual.cover_text) || '').trim();\nconst coverWords = cover ? cover.split(/\\s+/).length : 0;\nadd(10, 'نص الغلاف أربع كلمات كحد أقصى', coverWords > 0 && coverWords <= 4, cover);\nconst failed = checks.filter(c => !c.passed);\nconst status = failed.length === 0 ? 'pass' : 'fail';\nconst postId = 'POST-' + String(slot.date || '').replace(/-/g, '');\nconst scenes = (vid.scenes || []).map(s => s.t + ' · ' + s.action + ' — ' + s.on_screen).join('\\n');\nlet msg = '';\nif (status === 'pass') {\n  msg += '🎬 حزمة ' + slot.date + ' · ' + slot.weekday + '\\n' + slot.pillar + ' · ' + slot.series + '\\n';\n  msg += 'من الفكرة: ' + (body.idea_id || '') + '\\n\\n';\n  msg += '📌 ' + (pkg.meta && pkg.meta.title || '') + '\\n\\n';\n  msg += '🎣 الخطّافات:\\n' + hooks.map((h, i) => (i + 1) + '. ' + h).join('\\n') + '\\n\\n';\n  msg += '⏱ ' + chip + '\\n⚖️ ' + verdict + '\\n\\n';\n  msg += '🎙 النص الصوتي:\\n' + (vid.script || '') + '\\n\\n';\n  msg += '🎞 المشاهد:\\n' + scenes + '\\n\\n';\n  msg += '🖼 الغلاف: ' + cover + ' | الرقم: ' + ((pkg.visual && pkg.visual.cover_number) || '');\n} else {\n  msg = '⚠️ حزمة ' + slot.date + ' لم تجتز الحارس\\n\\n' + failed.map(c => '❌ ' + c.name + (c.note ? ' — ' + c.note : '')).join('\\n');\n}\nconst capMsg = ['📱 كابشنات ' + slot.date,\n  '── تيك توك ──\\n' + ((caps.tiktok && caps.tiktok.text) || '') + '\\n' + (((caps.tiktok && caps.tiktok.hashtags) || []).join(' ')),\n  '── إنستقرام ──\\n' + ((caps.instagram && caps.instagram.text) || '') + '\\n' + (((caps.instagram && caps.instagram.hashtags) || []).join(' ')),\n  '── يوتيوب شورتس ──\\n' + ytTitle + '\\n' + ((caps.youtube_shorts && caps.youtube_shorts.text) || ''),\n  '── سناب ──\\n' + ((caps.snapchat && caps.snapchat.text) || ''),\n  '── إكس ──\\n' + ((caps.x && caps.x.text) || '')].join('\\n\\n');\nconst liMsg = '💼 لينكدإن ' + slot.date + '\\n\\n' + ((caps.linkedin && caps.linkedin.text) || '') + '\\n\\n' + (((caps.linkedin && caps.linkedin.hashtags) || []).join(' ')) + '\\n\\n── EN ──\\n' + ((caps.linkedin && caps.linkedin.en_version) || '');\nreturn [{ json: {\n  guard_status: status, checks: checks, failed_count: failed.length,\n  post_id: postId, idea_id: body.idea_id || '', slot: slot, package: pkg,\n  msg_main: msg.slice(0, 4000), msg_caps: capMsg.slice(0, 4000), msg_li: liMsg.slice(0, 4000),\n  row: {\n    post_id: postId, date: slot.date || '', day_index: '', pillar: slot.pillar || '', series: slot.series || '',\n    title: (pkg.meta && pkg.meta.title) || '', hook: hooks[0] || '', chip: chip, verdict: verdict,\n    idea_id: body.idea_id || '', platforms: 'تيك توك، إنستقرام، شورتس، سناب، لينكدإن، إكس',\n    status: 'جاهز للتصوير', payload: JSON.stringify(pkg).slice(0, 40000)\n  }\n} }];"
+      }
+    },
+    {
+      "id": "25b29b11-abb8-4140-8552-745c7d03dafd",
+      "name": "اجتاز الحارس؟",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        180
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.guard_status }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "pass"
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "c4f1a128-6f2d-4d4e-8a04-e4ae7de2a8d0",
+      "name": "أرشفة المنشور",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        60
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "__SHEET_ID__",
+          "cachedResultName": "سوّي — أرشيف المحتوى"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "posts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "post_id": "={{ $json.row.post_id }}",
+            "date": "={{ $json.row.date }}",
+            "day_index": "={{ $json.row.day_index }}",
+            "pillar": "={{ $json.row.pillar }}",
+            "series": "={{ $json.row.series }}",
+            "title": "={{ $json.row.title }}",
+            "hook": "={{ $json.row.hook }}",
+            "chip": "={{ $json.row.chip }}",
+            "verdict": "={{ $json.row.verdict }}",
+            "idea_id": "={{ $json.row.idea_id }}",
+            "platforms": "={{ $json.row.platforms }}",
+            "status": "={{ $json.row.status }}",
+            "payload": "={{ $json.row.payload }}"
+          },
+          "schema": [
+            {
+              "id": "post_id",
+              "displayName": "post_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "day_index",
+              "displayName": "day_index",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "pillar",
+              "displayName": "pillar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "series",
+              "displayName": "series",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "hook",
+              "displayName": "hook",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "chip",
+              "displayName": "chip",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "verdict",
+              "displayName": "verdict",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "idea_id",
+              "displayName": "idea_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "platforms",
+              "displayName": "platforms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "payload",
+              "displayName": "payload",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "",
+          "name": "Google Sheets — Sawwi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "8c154153-eb62-45db-b465-71a9d9767924",
+      "name": "تعليم الفكرة مستخدمة",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        60
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "__SHEET_ID__",
+          "cachedResultName": "سوّي — أرشيف المحتوى"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "ideas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "id"
+          ],
+          "value": {
+            "id": "={{ $('حارس البراند').first().json.idea_id }}",
+            "status": "used",
+            "used_date": "={{ $('حارس البراند').first().json.slot.date }}",
+            "post_id": "={{ $('حارس البراند').first().json.post_id }}",
+            "updated_at": "={{ $now.toISO() }}"
+          },
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "used_date",
+              "displayName": "used_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "post_id",
+              "displayName": "post_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "",
+          "name": "Google Sheets — Sawwi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b376335c-1373-4fe8-9d77-213952be733e",
+      "name": "إرسال الحزمة",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        60
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "__TELEGRAM_CHAT_ID__",
+        "text": "={{ $('حارس البراند').first().json.msg_main }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram — Sawwi"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b4254c18-5098-4bc6-9111-813becf1cdc9",
+      "name": "إرسال الكابشنات",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        60
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "__TELEGRAM_CHAT_ID__",
+        "text": "={{ $('حارس البراند').first().json.msg_caps }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram — Sawwi"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7595feaf-9f89-4300-a3b7-1d6b5260aba6",
+      "name": "إرسال لينكدإن",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        60
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "__TELEGRAM_CHAT_ID__",
+        "text": "={{ $('حارس البراند').first().json.msg_li }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram — Sawwi"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b9e61033-c24a-4405-b859-8ba98333ccb4",
+      "name": "رد الاجتياز",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1920,
+        60
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, guard_status: 'pass', post_id: $('حارس البراند').first().json.post_id, idea_id: $('حارس البراند').first().json.idea_id } }}",
+        "options": {}
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "77325682-0c81-42f7-8683-bf76ee802aef",
+      "name": "تقرير الرفض",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        340
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "__TELEGRAM_CHAT_ID__",
+        "text": "={{ $json.msg_main }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "",
+          "name": "Telegram — Sawwi"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "36653e0f-9782-43f8-a221-f64d5c279b35",
+      "name": "رد الرفض",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        960,
+        340
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, guard_status: 'fail', failed: $('حارس البراند').first().json.failed_count } }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "82b35577-af8b-4985-818d-eadf234ba333",
+      "name": "Sticky Note 82b35577",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        -368
+      ],
+      "parameters": {
+        "content": "## الطرف الأول — موعد اليوم\nالسكربت المحلي يسأل: أي ركيزة اليوم وأي فكرة تناسبها؟\nالاختيار يفضّل approved ثم الأقرب لركيزة اليوم وسلسلته.\nيتجاهل used و rejected و hold.\n\nيمكن فرض فكرة بعينها: ?idea=IDEA-0004",
+        "color": 3,
+        "width": 1120,
+        "height": 224
+      }
+    },
+    {
+      "id": "8e03219e-c733-41aa-aaaa-a816fc7e8840",
+      "name": "Sticky Note 8e03219e",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        80
+      ],
+      "parameters": {
+        "content": "## الطرف الثاني — الحزمة\nclaude ينتجها محليًا على الاشتراك (بلا مفتاح API) ثم يرسلها هنا.\nالحارس يفحص عشر قواعد قبل أن تصلك.\n\n⛔ لا نشر في هذه النسخة — التسليم على تيليجرام فقط، والنشر بيدك.",
+        "color": 4,
+        "width": 640,
+        "height": 224
+      }
+    },
+    {
+      "id": "63b66cc8-9e4a-410a-9ae4-c15f1e4cd1fc",
+      "name": "Sticky Note 63b66cc8",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        688,
+        -32
+      ],
+      "parameters": {
+        "content": "## التسليم\nثلاث رسائل: الحزمة الأساسية · الكابشنات · لينكدإن.\nوتُؤرشف في ورقة posts، وتُعلَّم الفكرة used فلا تتكرر.",
+        "color": 5,
+        "width": 1360,
+        "height": 224
+      }
+    }
+  ],
+  "connections": {
+    "طلب موعد اليوم": {
+      "main": [
+        [
+          {
+            "node": "قراءة بنك الأفكار",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "قراءة بنك الأفكار": {
+      "main": [
+        [
+          {
+            "node": "قراءة المنشورات السابقة",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "قراءة المنشورات السابقة": {
+      "main": [
+        [
+          {
+            "node": "اختيار فكرة اليوم",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "اختيار فكرة اليوم": {
+      "main": [
+        [
+          {
+            "node": "رد الموعد",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "استقبال الحزمة": {
+      "main": [
+        [
+          {
+            "node": "حارس البراند",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "حارس البراند": {
+      "main": [
+        [
+          {
+            "node": "اجتاز الحارس؟",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "اجتاز الحارس؟": {
+      "main": [
+        [
+          {
+            "node": "أرشفة المنشور",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "تقرير الرفض",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "أرشفة المنشور": {
+      "main": [
+        [
+          {
+            "node": "تعليم الفكرة مستخدمة",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "تعليم الفكرة مستخدمة": {
+      "main": [
+        [
+          {
+            "node": "إرسال الحزمة",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "إرسال الحزمة": {
+      "main": [
+        [
+          {
+            "node": "إرسال الكابشنات",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "إرسال الكابشنات": {
+      "main": [
+        [
+          {
+            "node": "إرسال لينكدإن",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "إرسال لينكدإن": {
+      "main": [
+        [
+          {
+            "node": "رد الاجتياز",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "تقرير الرفض": {
+      "main": [
+        [
+          {
+            "node": "رد الرفض",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "active": false
+}
